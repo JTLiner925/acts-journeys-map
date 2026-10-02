@@ -458,10 +458,16 @@ table.mx td button .mk.p { left: -2px; right: auto; }
 .sx { display: flex; flex-direction: column; gap: 10px; padding: 6px 0 4px; }
 .sx .waf { max-width: 300px; }
 button, .btn, .jcard, .venue, .step > button, .echip, .wchip, .patrow, .pstrip, .upj button, .uprail button, table.mx td button, .vis { transition: background-color .18s ease, border-color .18s ease, box-shadow .18s ease, color .18s ease, opacity .18s ease; }
-.app { transition: opacity .3s ease; }
-.app.out { opacity: 0; }
 details.sect[open] > :not(summary) { animation: fadeup .3s ease both; }
 @media (prefers-reduced-motion: reduce) { .fade, .card, .xp, details.sect[open] > :not(summary) { animation: none; } .app { transition: none; } .out { transition: none; } }
+
+/* always-visible scrollbars */
+.panel, .leftextra, .mxwrap, .upj, .uprail { scrollbar-gutter: auto; }
+.panel::-webkit-scrollbar, .leftextra::-webkit-scrollbar, .mxwrap::-webkit-scrollbar, .upj::-webkit-scrollbar, .uprail::-webkit-scrollbar { width: 14px; height: 14px; }
+.panel::-webkit-scrollbar-track, .leftextra::-webkit-scrollbar-track, .mxwrap::-webkit-scrollbar-track, .upj::-webkit-scrollbar-track, .uprail::-webkit-scrollbar-track { background: color-mix(in srgb, var(--ink2) 10%, transparent); border-radius: 8px; }
+.panel::-webkit-scrollbar-thumb, .leftextra::-webkit-scrollbar-thumb, .mxwrap::-webkit-scrollbar-thumb, .upj::-webkit-scrollbar-thumb, .uprail::-webkit-scrollbar-thumb { background: color-mix(in srgb, var(--ink2) 60%, transparent); border-radius: 8px; border: 3px solid transparent; background-clip: content-box; }
+.panel::-webkit-scrollbar-thumb:hover, .leftextra::-webkit-scrollbar-thumb:hover, .mxwrap::-webkit-scrollbar-thumb:hover { background: var(--ink2); background-clip: content-box; }
+@supports not selector(::-webkit-scrollbar) { .panel, .leftextra, .mxwrap, .upj, .uprail { scrollbar-width: auto; scrollbar-color: var(--ink2) transparent; } }
 
 @media (max-width: 900px) { .upmain { grid-template-columns: minmax(0, 1fr); } }
 
@@ -2374,26 +2380,41 @@ function upSync(ms) {
 }
 const reduceMotion = () => matchMedia("(prefers-reduced-motion: reduce)").matches;
 let viewToken = 0, upTok = 0;
+const mapEl = document.getElementById("mapwrap");
+function flipMap(a, b) {
+  const dx = a.left - b.left, dy = a.top - b.top, sx = a.width / b.width, sy = a.height / b.height;
+  if (Math.abs(dx) + Math.abs(dy) < 2 && Math.abs(sx - 1) + Math.abs(sy - 1) < 0.01) return;
+  mapEl.style.transition = "none"; mapEl.style.transformOrigin = "0 0"; mapEl.style.zIndex = "8";
+  mapEl.style.transform = `translate(${dx}px,${dy}px) scale(${sx},${sy})`;
+  void mapEl.offsetWidth;
+  mapEl.style.transition = "transform .45s cubic-bezier(.45, 0, .2, 1)"; mapEl.style.transform = "none";
+  setTimeout(() => { mapEl.style.transition = ""; mapEl.style.transformOrigin = ""; mapEl.style.zIndex = ""; mapEl.style.transform = ""; }, 500);
+}
 function setView(v) {
   const was = state.view; stopPlay();
   if (v !== "map") seedFromMap(v);
   state.view = v; if (v !== "up") stopUpPlay();
-  const tok = ++viewToken, cont = k => k === "map" ? panelBody : k === "up" ? upEl : ffEl, d = (was === v || reduceMotion()) ? 0 : 300;
+  const tok = ++viewToken, cont = k => k === "map" ? panelBody : k === "up" ? upEl : ffEl, old = cont(was), d = (was === v || reduceMotion()) ? 0 : 300;
   document.querySelectorAll(".views [data-view]").forEach(b => b.setAttribute("aria-selected", b.dataset.view === v));
+  if (d) { old.classList.add("out"); leftExtra.classList.add("out"); }
   const swap = () => {
     if (tok !== viewToken) return;
+    const before = mapEl.getBoundingClientRect(), nw = cont(v);
+    if (d) { nw.classList.add("out"); }
     appEl.classList.toggle("wide", v !== "map");
     if (v === "map") leftExtra.innerHTML = "";
     panelBody.hidden = v !== "map"; ffEl.hidden = v !== "fields"; upEl.hidden = v !== "up";
+    old.classList.remove("out");
     if (v === "fields") renderFF(); else if (v === "up") renderUp(); else renderPanel();
     panel.scrollTop = 0; window.scrollTo(0, 0);
     applyView();
     if (v === "up") { lastSync = null; upSync(0); }
     else if (v === "fields") { if (state.ff) syncMini(state.ff.c, state.ff.j, 0); else fitAll(0); }
     else if (state.focus) fitJourney(byId(state.focus), 0); else if (!state.city) fitAll(0);
-    requestAnimationFrame(() => requestAnimationFrame(() => { if (tok !== viewToken) return; appEl.classList.remove("out"); playIn(cont(v)); playIn(leftExtra); }));
+    if (d) flipMap(before, mapEl.getBoundingClientRect());
+    requestAnimationFrame(() => requestAnimationFrame(() => setTimeout(() => { if (tok !== viewToken) return; nw.classList.remove("out"); leftExtra.classList.remove("out"); playIn(nw); playIn(leftExtra); }, d ? 120 : 0)));
   };
-  if (d) { appEl.classList.add("out"); setTimeout(swap, d); } else swap();
+  if (d) setTimeout(swap, d); else swap();
 }
 function upSoft() {
   const tok = ++upTok, d = reduceMotion() ? 0 : 300, sc = upEl.querySelector(".upscene");
