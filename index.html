@@ -482,6 +482,19 @@ details.sect[open] > :not(summary) { animation: fadeup .3s ease both; }
 .panel::-webkit-scrollbar-thumb:hover, .leftextra::-webkit-scrollbar-thumb:hover, .mxwrap::-webkit-scrollbar-thumb:hover { background: var(--ink2); background-clip: content-box; }
 @supports not selector(::-webkit-scrollbar) { .panel, .leftextra, .mxwrap, .upj, .uprail { scrollbar-width: auto; scrollbar-color: var(--ink2) transparent; } }
 
+/* hover feedback: a soft teal tint */
+.btn:hover:not(:disabled):not(.primary), .tools button:hover, .views button[aria-selected="false"]:hover, .wchip:not(.on):hover, .echip:not(.on):hover, .pstrip:not(.on):hover { background-color: color-mix(in srgb, var(--teal) 16%, var(--surface)); border-color: var(--teal); }
+.jcard:hover, .upj button[aria-pressed="false"]:hover, .uprail button[aria-pressed="false"]:hover, .venue[aria-pressed="false"]:hover, .vis:hover, table.mx td button:hover, .patrow:hover { background-color: color-mix(in srgb, var(--teal) 14%, var(--surface)); }
+.step > button:hover, .step.cur > button:hover { background-color: color-mix(in srgb, var(--teal) 14%, transparent); }
+.gi:hover { background-color: color-mix(in srgb, var(--teal) 14%, transparent) !important; }
+.btn.primary:hover:not(:disabled), .views button[aria-selected="true"]:hover { filter: brightness(1.18); }
+.layers label:hover { color: var(--accent); }
+a:hover { color: color-mix(in srgb, var(--accent) 65%, var(--teal)); }
+.cring:hover { stroke-width: 3.6; }
+.leg:hover .line { stroke-width: 5px !important; }
+.pstar:hover { stroke: var(--teal); stroke-width: 2.4; }
+.chip:hover { border-color: var(--teal); }
+
 @media (max-width: 900px) { .upmain { grid-template-columns: minmax(0, 1fr); } }
 
 @media (max-width: 900px) {
