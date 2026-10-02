@@ -157,7 +157,9 @@ header.top h1 { font-family: var(--font-display); font-weight: 600; font-size: 1
 header.top p { margin: 0; color: var(--ink2); font-size: 0.9rem; min-width: 0; }
 
 .app { display: grid; grid-template-columns: minmax(0, 1fr) minmax(440px, 540px); gap: 24px; height: max(560px, calc(100dvh - 118px)); margin: 0 28px 28px; transition: grid-template-columns .25s; }
-.app.wide { grid-template-columns: minmax(0, 25fr) minmax(0, 75fr); }
+.app.wide { grid-template-columns: minmax(0, 40fr) minmax(0, 60fr); }
+.app.wide .mapwrap { align-self: start; height: 50%; min-height: 340px; }
+.app.wide .lbl.cur { display: block !important; font-size: 13px; }
 .mapwrap { position: relative; min-width: 0; min-height: 0; background: var(--sea); overflow: hidden; touch-action: none; border: 1px solid var(--line); border-radius: 14px; }
 #map { width: 100%; height: 100%; display: block; cursor: grab; user-select: none; -webkit-user-select: none; }
 #map.drag { cursor: grabbing; }
@@ -423,7 +425,7 @@ table.mx td button .mk.p { left: -2px; right: auto; }
 .pbody { display: flex; flex-direction: column; gap: 18px; min-width: 0; }
 .pbody[hidden] { display: none; }
 .app.wide .upmain { grid-template-columns: minmax(0, 1fr); }
-.app.wide .lbl, .app.wide .nb, .app.wide .pcnt, .app.wide .geo.land, .app.wide .key, .app.wide #zkey { display: none; }
+.app.wide .lbl:not(.cur), .app.wide .nb, .app.wide .pcnt, .app.wide .geo.land, .app.wide .key, .app.wide #zkey { display: none; }
 @media (min-width: 1500px) { .app.wide .upmain { grid-template-columns: minmax(0, 1fr) minmax(300px, 380px); } }
 @media (max-width: 900px) { .upmain { grid-template-columns: minmax(0, 1fr); } }
 
@@ -1712,12 +1714,12 @@ function flyTo(k, cx, cy, ms) { /* centre map point (cx,cy) at zoom k */
   };
   anim = requestAnimationFrame(tick);
 }
-function fitPoints(pts, pad, ms) {
+function fitPoints(pts, pad, ms, maxK) {
   const xs = pts.map(p => p[0]), ys = pts.map(p => p[1]);
   const x0 = Math.min(...xs), x1 = Math.max(...xs), y0 = Math.min(...ys), y1 = Math.max(...ys);
   const cw = svg.clientWidth, ch = svg.clientHeight, s = Math.min(cw / W, ch / H);
   const vw = cw / s, vh = ch / s;
-  const k = Math.min(vw / Math.max(40, x1 - x0 + pad * 2), vh / Math.max(40, y1 - y0 + pad * 2), 8);
+  const k = Math.min(vw / Math.max(40, x1 - x0 + pad * 2), vh / Math.max(40, y1 - y0 + pad * 2), maxK || 8);
   flyTo(Math.max(0.9, k), (x0 + x1) / 2, (y0 + y1) / 2, ms);
 }
 function fitAll(ms) { const pts = Object.keys(PINS).map(k => proj(CITIES[k].ll)); pts.push([60, 0], [W - 20, 0]); fitPoints(pts, 70, ms); }
@@ -1793,6 +1795,7 @@ function updateStyles() {
       else op = 1;
     } else op = JOURNEYS.some(j => !state.hidden.has(j.id) && j.cities.has(key)) ? 1 : 0.15;
     P.g.style.opacity = op; P.g.style.pointerEvents = op < 0.2 ? "none" : "";
+    P.text.classList.toggle("cur", state.city === key);
   }
   /* ring */
   let target = null, col = "--accent";
@@ -2130,7 +2133,7 @@ function ffDetail() {
 }
 ffEl.addEventListener("click", e => {
   const b = e.target.closest("[data-act]"); if (!b) return;
-  if (b.dataset.act === "ffcell") { state.ff = { c: b.dataset.c, j: b.dataset.j }; const sc = ffEl.querySelector(".mxwrap"); const l = sc.scrollLeft, t = sc.scrollTop; renderFF(); const sc2 = ffEl.querySelector(".mxwrap"); sc2.scrollLeft = l; sc2.scrollTop = t; const d = document.getElementById("ffdetail"); if (d) d.scrollIntoView({ block: "nearest", behavior: "smooth" }); }
+  if (b.dataset.act === "ffcell") { state.ff = { c: b.dataset.c, j: b.dataset.j }; syncMini(b.dataset.c, b.dataset.j); const sc = ffEl.querySelector(".mxwrap"); const l = sc.scrollLeft, t = sc.scrollTop; renderFF(); const sc2 = ffEl.querySelector(".mxwrap"); sc2.scrollLeft = l; sc2.scrollTop = t; const d = document.getElementById("ffdetail"); if (d) d.scrollIntoView({ block: "nearest", behavior: "smooth" }); }
   else if (b.dataset.act === "ffmap") { setView("map"); state.hidden.delete(b.dataset.j); setTimeout(() => selectCity(b.dataset.c, b.dataset.j), 60); }
 });
 
@@ -2235,24 +2238,45 @@ upEl.addEventListener("click", e => {
   else if (a === "map") { stopUpPlay(); const sc = list[state.up.i]; setView("map"); state.hidden.delete(sc.jid); setTimeout(() => selectCity(sc.c, sc.jid), 60); return; }
   else if (a === "play") {
     if (upPlay) { stopUpPlay(); } else {
-      const adv = () => { const l = sceneList(state.up.j); if (state.up.i >= l.length - 1) { stopUpPlay(); renderUp(); return; } state.up.i++; state.up.v = 0; renderUp(); };
+      const adv = () => { const l = sceneList(state.up.j); if (state.up.i >= l.length - 1) { stopUpPlay(); renderUp(); return; } state.up.i++; state.up.v = 0; renderUp(); upSync(); };
       if (state.up.i >= list.length - 1) state.up.i = -1; adv(); upPlay = setInterval(adv, 6500); return;
     }
   }
-  renderUp();
+  renderUp(); upSync();
   const r = upEl.querySelector(".uprail [aria-pressed=true]"); if (r) r.scrollIntoView({ inline: "center", block: "nearest" });
 });
 function renderTop() {
   const tab = (v, t) => `<button role="tab" data-view="${v}" aria-selected="${state.view === v}">${t}</button>`;
   panelTop.innerHTML = layersHTML() + `<div class="views" role="tablist" aria-label="View">${tab("map", "Map")}${tab("up", "Up close")}${tab("fields", "Four Fields")}</div>`;
 }
+let savedMap = null, lastSync = null;
+function syncMini(c, jid) {
+  const j = byId(jid); if (!j) return;
+  state.focus = jid; state.step = Math.max(0, j.steps.findIndex(x => x.c === c)); state.city = c; updateStyles();
+  const st = j.steps[state.step], L = LEGS.find(x => x.s === st), pts = [proj(CITIES[c].ll)];
+  if (L) pts.push(...L.pts); fitPoints(pts, 90, undefined, 3.5);
+}
+function upSync() {
+  if (state.view !== "up") return;
+  const sc = sceneList(state.up.j)[state.up.i]; if (!sc) return;
+  const key = state.up.j + "|" + sc.c; if (key === lastSync) return;
+  lastSync = key; syncMini(sc.c, state.up.j);
+}
 function setView(v) {
+  const was = state.view; stopPlay();
+  if (was === "map" && v !== "map") savedMap = { focus: state.focus, step: state.step, city: state.city };
+  if (v === "map" && was !== "map" && savedMap) { state.focus = savedMap.focus; state.step = savedMap.step; state.city = savedMap.city; updateStyles(); }
   state.view = v; if (v !== "up") stopUpPlay();
   document.querySelectorAll(".views [data-view]").forEach(b => b.setAttribute("aria-selected", b.dataset.view === v));
   panelBody.hidden = v !== "map"; ffEl.hidden = v !== "fields"; upEl.hidden = v !== "up";
   appEl.classList.toggle("wide", v !== "map");
   if (v === "fields") renderFF(); else if (v === "up") renderUp(); else renderPanel();
-  setTimeout(() => { applyView(); if (v !== "map") fitAll(0); else if (state.focus) fitJourney(byId(state.focus)); else if (!state.city) fitAll(0); }, 320);
+  setTimeout(() => {
+    applyView();
+    if (v === "up") { lastSync = null; upSync(); }
+    else if (v === "fields") { if (state.ff) syncMini(state.ff.c, state.ff.j); else fitAll(0); }
+    else if (state.focus) fitJourney(byId(state.focus)); else if (!state.city) fitAll(0);
+  }, 320);
   panel.scrollTop = 0; window.scrollTo(0, 0);
 }
 document.addEventListener("click", e => { const b = e.target.closest("[data-view]"); if (b) setView(b.dataset.view); });
