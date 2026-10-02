@@ -447,6 +447,20 @@ table.mx td button .mk.p { left: -2px; right: auto; }
 .clegend li.p .ci { border: 2px dashed var(--jc); border-radius: 50%; padding: 3px; width: 32px; height: 32px; margin: -2px; }
 .clegend li.p .ci .wic { width: 24px; height: 24px; }
 .clegend .st { font-size: 0.68rem; letter-spacing: 0.06em; text-transform: uppercase; color: var(--ink2); margin-left: 4px; }
+/* soft motion */
+@keyframes fadeup { from { opacity: 0; transform: translateY(8px); } to { opacity: 1; transform: none; } }
+@keyframes xp { from { grid-template-rows: 0fr; opacity: 0; } to { grid-template-rows: 1fr; opacity: 1; } }
+.fade { animation: fadeup .26s cubic-bezier(.2, .7, .3, 1) both; }
+.card { animation: fadeup .28s cubic-bezier(.2, .7, .3, 1) both; }
+.xp { display: grid; grid-template-rows: 1fr; animation: xp .34s cubic-bezier(.2, .7, .3, 1) both; }
+.xp > .xi { min-height: 0; overflow: hidden; }
+.sx { display: flex; flex-direction: column; gap: 10px; padding: 6px 0 4px; }
+.sx .waf { max-width: 300px; }
+button, .btn, .jcard, .venue, .step > button, .echip, .wchip, .patrow, .pstrip, .upj button, .uprail button, table.mx td button, .vis { transition: background-color .18s ease, border-color .18s ease, box-shadow .18s ease, color .18s ease, opacity .18s ease; }
+.app { transition: grid-template-columns .28s cubic-bezier(.2, .7, .3, 1); }
+details.sect[open] > :not(summary) { animation: fadeup .24s ease both; }
+@media (prefers-reduced-motion: reduce) { .fade, .card, .xp, details.sect[open] > :not(summary) { animation: none; } .app { transition: none; } }
+
 @media (max-width: 900px) { .upmain { grid-template-columns: minmax(0, 1fr); } }
 
 @media (max-width: 900px) {
@@ -2054,6 +2068,22 @@ function growthHTML() {
     <div class="axis"><span>1</span><span>10</span><span>100</span><span>1,000</span><span>10,000</span></div>
     <p class="muted small">“Myriads” is the Greek plural for tens of thousands, so 20,000 is a floor, not a count. Acts 5:14 and 6:7 describe growth without numbers.</p></details>`;
 }
+function stepExtra(j, s) {
+  const key = s.c, col = `var(${j.color})`, sn = (SNAPS[key] || []).find(x => x.jid === j.id), fd = (FDM[key] || []).find(x => x.jid === j.id), pe = (PEM[key] || []).filter(e => e.jid === j.id);
+  let o = "";
+  if (sn) {
+    const used = PR.filter(p => sn.pm[p.k]);
+    o += `<div class="row"><span class="pill ${sn.st === "church" ? "" : "group"}">${sn.st === "church" ? "Church (solid circle)" : "Group, not yet a church (dashed circle)"}</span><span class="muted small">${esc(sn.when)}</span></div>
+      <p class="small">${esc(sn.ev)} <span class="muted">(${refLinks(sn.er)})</span></p>${wafSVG(sn)}
+      ${sn.nums.length ? `<ul class="nl">${sn.nums.map(n => `<li>${n[1] != null ? `<span class="v">${n[1].toLocaleString()}${n[1] === 20000 ? "+" : ""}</span> ` : ""}${esc(n[0])} ${refsInline(n[2])}</li>`).join("")}</ul>` : ""}
+      ${sn.names.length ? peopleChips(sn.names) : ""}
+      <ul class="clegend" style="--jc:${col}">${used.map(p => { const rec = sn.pm[p.k]; return `<li class="${rec.s === "w" ? "w" : "p"}"><span class="ci">${wIcon(p.k)}</span><span><b>${esc(p.n)}</b> <span class="st">${rec.s === "w" ? "Done well" : "Done poorly"}</span><br><span class="small">${esc(rec.note)} ${refsInline(rec.ref)}</span></span></li>`; }).join("")}</ul>`;
+  } else o += `<p class="muted small">No gathering of believers is described here on this journey.</p>`;
+  if (fd) o += `<div class="fstep" style="--jc:${col}"><span>${fieldSVG(fd.st, j.color)}</span><div><b>${esc(STAGE_NAME[fd.st])}</b><br>${esc(fd.note)} ${refsInline(fd.ref)}${fd.lead ? `<br><span class="small muted">Leaders: ${esc(fd.lead)}</span>` : ""}</div></div>`;
+  if (pe.length) o += pe.map(e => `<div class="pev" style="--jc:${col}"><div class="row"><span class="tag">${esc(KIND[e.k])}</span><span class="sev">${"●".repeat(e.sev)}${"○".repeat(3 - e.sev)}</span></div><span>${esc(e.t)} ${refsInline(e.r)}</span><ul class="el">${e.eff.map(x => `<li><span class="etag">${esc(EFF[x[0]].n)}</span><span>${esc(x[1])} ${refsInline(x[2])}</span></li>`).join("")}</ul></div>`).join("");
+  if (SC.some(x => x.c === key && x.jid === j.id)) o += `<div><button class="btn" data-act="upclose" data-c="${key}">Open up close</button></div>`;
+  return `<div class="sx" style="--jc:${col}">${o}</div>`;
+}
 function renderPanel() {
   const keepScroll = panel.scrollTop;
   let html = cityCard();
@@ -2083,15 +2113,17 @@ function renderPanel() {
       <ol class="steps" style="--jc:var(${j.color})">${j.steps.map((s, i) => {
         const isCur = cur === i, done = cur != null && i < cur;
         const who = s.with || j.base;
-        const det = isCur ? `<div class="sdetail"><span>${esc(s.t)}</span>
+        const det = isCur ? `<div class="xp"><div class="xi"><div class="sdetail"><span>${esc(s.t)}</span>
           <span><span class="lab">With</span>${esc(who.join(", "))}</span>
           ${s.met && s.met.length ? `<span><span class="lab">Met</span>${esc(s.met.join("; "))}</span>` : ""}
-          <span class="small"><span class="lab">Read</span>${refLinks(s.r)}</span></div>` : "";
+          <span class="small"><span class="lab">Read</span>${refLinks(s.r)}</span>
+          ${stepExtra(j, s)}</div></div></div>` : "";
         return `<li class="step ${isCur ? "cur" : ""} ${done ? "done" : ""}"><button data-act="goto" data-i="${i}" ${isCur ? 'aria-current="step"' : ""}><span class="n">${i + 1}</span><span><span class="pl">${esc(CITIES[s.c].n)}${s.ret ? ' <span class="muted small">(return)</span>' : ""}</span><br><span class="rf">${esc(s.r)}</span></span></button>${det}</li>`;
       }).join("")}</ol>`;
   }
   html += waffleHTML() + growthHTML() + fieldsPanelHTML() + persPanelHTML();
   panelBody.innerHTML = html;
+  const pkey = String(state.focus); if (pkey !== lastPanelKey) { lastPanelKey = pkey; playIn(panelBody); }
   panel.scrollTop = keepScroll;
 }
 panel.addEventListener("click", e => {
@@ -2169,6 +2201,7 @@ function renderFF() {
       <div class="mxwrap"><table class="mx"><thead><tr><th class="rh"></th>${js.map(j => `<th style="--jc:var(${j.color})"><span>${esc(j.short)}</span></th>`).join("")}</tr></thead><tbody>${rowsHTML}</tbody></table></div>
     </div>
     ${desk ? "" : `<div class="ffdetail" id="ffdetail">${ffDetail()}</div>`}</div>`;
+  const fkey = state.ff ? state.ff.c + "|" + state.ff.j : ""; if (fkey !== lastFFKey) { lastFFKey = fkey; setTimeout(() => playIn(leftExtra), 0); }
   leftExtra.innerHTML = desk ? (ffDetail() || `<p class="muted small">Pick a place and journey in the table to see its evidence, leaders and suffering here.</p>`) : "";
 }
 function ffDetail() {
@@ -2227,7 +2260,7 @@ function renderUp() {
   const wellN = sn ? sn.pr.filter(q => q[1] === "w").length : 0, poorN = sn ? sn.pr.length - wellN : 0;
   const venueHTML = sc.v.map((v, i) => { const multi = v.a.length > 1, ac = AUD[v.a[0]].c; return `<button class="venue" style="--jc:${col};--ac:var(${ac})" data-up="venue" data-i="${i}" aria-pressed="${i === state.up.v}"><span class="no">${i + 1}</span><span class="rs ${v.r === "n" ? "n" : ""}" title="${esc(RESP[v.r][0])}">${RESP[v.r][1]}</span><span class="vi ${multi ? "split" : ""}">${venueIcon(v.t)}</span><span class="vn">${esc(v.n)}</span><span class="vt2">${esc(VT[v.t])}</span>${audPills(v.a)}</button>`; }).join("");
   const desk = state.view === "up" && matchMedia("(min-width: 901px)").matches;
-  const asideHTML = `    <aside class="upside" style="--jc:${col}"><div class="cwrap"><div class="cw1">${upCircle(sn, j)}</div><ul class="clegend">${PR.map(p => { const rec = sn && sn.pm[p.k], st = rec ? (rec.s === "w" ? "Done well" : "Done poorly") : "Nothing recorded"; return `<li class="${rec ? (rec.s === "w" ? "w" : "p") : "n"}"><span class="ci">${wIcon(p.k)}</span><span><b>${esc(p.n)}</b> <span class="st">${st}</span>${rec ? `<br><span class="small">${esc(rec.note)} ${refsInline(rec.ref)}</span>` : ""}</span></li>`; }).join("")}</ul></div>
+  const asideHTML = `    <aside class="upside" style="--jc:${col}"><div class="cwrap"><div class="cw1">${upCircle(sn, j)}</div><ul class="clegend">${!(sn && sn.pr.length) ? `<li class="n"><span></span><span>No Waffle practices are recorded here.</span></li>` : PR.filter(p => sn.pm[p.k]).map(p => { const rec = sn && sn.pm[p.k], st = rec ? (rec.s === "w" ? "Done well" : "Done poorly") : "Nothing recorded"; return `<li class="${rec ? (rec.s === "w" ? "w" : "p") : "n"}"><span class="ci">${wIcon(p.k)}</span><span><b>${esc(p.n)}</b> <span class="st">${st}</span>${rec ? `<br><span class="small">${esc(rec.note)} ${refsInline(rec.ref)}</span>` : ""}</span></li>`; }).join("")}</ul></div>
      <p class="small muted" style="text-align:center">${sn ? `${sn.st === "church" ? "Solid circle: a church." : "Dashed circle: believers, not yet a church."} ${wellN} practiced well${poorN ? `, ${poorN} poorly (outside the circle)` : ""}. Faint icons: nothing recorded.` : "No gathering of believers is described here, so the circle is empty and dashed."}</p>
      ${sn ? `<p class="small">${esc(sn.ev)} <span class="muted">(${refLinks(sn.er)})</span></p>` : ""}
      ${sn && sn.nums.length ? `<div><ul class="nl" style="--jc:${col}">${sn.nums.map(n => `<li>${n[1] != null ? `<span class="v">${n[1].toLocaleString()}${n[1] === 20000 ? "+" : ""}</span> ` : ""}${esc(n[0])} ${refsInline(n[2])}</li>`).join("")}</ul></div>` : ""}
@@ -2250,6 +2283,8 @@ function renderUp() {
 ${desk ? "" : asideHTML}</div>
    ${upPattern()}</div>`;
   leftExtra.innerHTML = desk ? asideHTML : "";
+  const ukey = state.up.j + "|" + state.up.i;
+  if (ukey !== lastUpKey) { lastUpKey = ukey; playIn(upEl.querySelector(".upscene")); playIn(leftExtra); } else playIn(upEl.querySelector(".vdetail"));
 }
 function upPattern() {
   const firstSyn = SC.filter(x => x.j.grp === "paul" && ["salamis", "pisantioch", "iconium", "thessalonica", "berea", "athens", "corinth", "ephesus"].includes(x.c));
@@ -2300,7 +2335,8 @@ function renderTop() {
   const tab = (v, t) => `<button role="tab" data-view="${v}" aria-selected="${state.view === v}">${t}</button>`;
   panelTop.innerHTML = layersHTML() + `<div class="views" role="tablist" aria-label="View">${tab("map", "Map")}${tab("up", "Up close")}${tab("fields", "Four Fields")}</div>`;
 }
-let lastSync = null;
+const playIn = el => { if (!el) return; el.classList.remove("fade"); void el.offsetWidth; el.classList.add("fade"); };
+let lastSync = null, lastUpKey = null, lastFFKey = null, lastPanelKey = null;
 function seedFromMap(v) {
   const jid = state.focus, j = jid ? byId(jid) : null;
   const city = state.city || (j && state.step != null && j.steps[state.step] ? j.steps[state.step].c : null);
@@ -2337,7 +2373,8 @@ function setView(v) {
     if (v === "up") { lastSync = null; upSync(); }
     else if (v === "fields") { if (state.ff) syncMini(state.ff.c, state.ff.j); else fitAll(0); }
     else if (state.focus) fitJourney(byId(state.focus)); else if (!state.city) fitAll(0);
-  }, 320);
+  }, 280);
+  playIn(v === "map" ? panelBody : v === "up" ? upEl : ffEl); playIn(leftExtra);
   panel.scrollTop = 0; window.scrollTo(0, 0);
 }
 document.addEventListener("click", e => { const b = e.target.closest("[data-view]"); if (b) setView(b.dataset.view); });
