@@ -56,7 +56,8 @@ img{max-width:100%}
   --f2: #d9b97a;
   --f3: #8fc16b;
   --f4: #d99a1e;
-  --banner: #008078;
+  --banner: #00BAB3;
+  --banner-ink: #00302d;
   --font-banner: "Outfit", system-ui, -apple-system, "Segoe UI", sans-serif;
   --font-display: "Newsreader", Georgia, "Times New Roman", serif;
   --font-ui: "Public Sans", system-ui, -apple-system, "Segoe UI", sans-serif;
@@ -98,7 +99,8 @@ img{max-width:100%}
     --aa: #9aa6af;
     --ab: #5fcf86;
     --as: #d4b04a;
-    --banner: #0a6460;
+    --banner: #00BAB3;
+    --banner-ink: #00302d;
     --f1: #4b5b63;
     --f2: #a58a52;
     --f3: #6fa84d;
@@ -107,7 +109,8 @@ img{max-width:100%}
   }
 }
 :root[data-theme="dark"] {
-  --banner: #0a6460;
+  --banner: #00BAB3;
+  --banner-ink: #00302d;
   --aj: #6fa5e6;
   --af: #b59be0;
   --ag: #e8924a;
@@ -156,9 +159,9 @@ button { font: inherit; color: inherit; cursor: pointer; }
 a { color: var(--accent); text-underline-offset: 2px; }
 :focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; }
 
-header.top { background: var(--banner); color: #fff; text-align: center; padding: 34px 28px 32px; margin-bottom: 24px; border-radius: 0 0 32px 32px; display: flex; flex-direction: column; align-items: center; gap: 10px; }
+header.top { background: var(--banner); color: var(--banner-ink); text-align: center; padding: 34px 28px 32px; margin-bottom: 24px; border-radius: 0; display: flex; flex-direction: column; align-items: center; gap: 10px; }
 header.top h1 { font-family: var(--font-banner); font-weight: 600; font-size: 2.5rem; line-height: 1.1; margin: 0; letter-spacing: -0.01em; text-wrap: balance; }
-header.top p { font-family: var(--font-banner); font-weight: 500; font-size: 1.05rem; line-height: 1.5; margin: 0; max-width: 62rem; color: #fff; text-wrap: pretty; }
+header.top p { font-family: var(--font-banner); font-weight: 500; font-size: 1.05rem; line-height: 1.5; margin: 0; max-width: 62rem; color: var(--banner-ink); text-wrap: pretty; }
 
 .app { display: grid; grid-template-columns: minmax(0, 1fr) minmax(440px, 540px); gap: 24px; height: max(560px, calc(100dvh - 230px)); margin: 0 28px 28px; transition: grid-template-columns .25s; }
 .app.wide { grid-template-columns: minmax(0, 40fr) minmax(0, 60fr); }
@@ -483,7 +486,7 @@ details.sect[open] > :not(summary) { animation: fadeup .3s ease both; }
   .app.wide .mapwrap { height: 28dvh; min-height: 0; }
   .panel { overflow: visible; padding: 0 16px 20px; }
   .ptop { position: static; }
-  header.top { padding: 22px 16px 22px; margin-bottom: 16px; border-radius: 0 0 22px 22px; }
+  header.top { padding: 22px 16px 22px; margin-bottom: 16px; border-radius: 0; }
   header.top h1 { font-size: 1.7rem; }
   header.top p { font-size: 0.95rem; }
 }
@@ -521,7 +524,7 @@ details.sect[open] > :not(summary) { animation: fadeup .3s ease both; }
   <aside class="panel" id="panel">
     <div id="paneltop" class="ptop"></div>
     <div id="panelbody" class="pbody" aria-live="polite"></div>
-    <section id="upview" class="pbody" hidden aria-label="Up-close view of each place"></section>
+    <section id="upview" class="pbody" hidden aria-label="In-depth view of each place"></section>
     <section id="ffview" class="pbody" hidden aria-label="Four Fields progression"></section>
   </aside>
 </div>
@@ -1923,7 +1926,7 @@ function navFromMap(key, jid) {
   const here = state.view === "up" ? state.up.j : (state.ff ? state.ff.j : state.focus);
   if (state.view === "up") {
     const cand = SC.find(x => x.c === key && x.jid === (jid || here)) || SC.find(x => x.c === key && x.jid === here) || SC.find(x => x.c === key);
-    if (!cand) { renderUp(); leftExtra.insertAdjacentHTML("afterbegin", `<p class="muted small">No up-close scene for ${esc(CITIES[key].n)} yet. Pick another place, or click empty map to go back to the full map.</p>`); return; }
+    if (!cand) { renderUp(); leftExtra.insertAdjacentHTML("afterbegin", `<p class="muted small">No in-depth scene for ${esc(CITIES[key].n)} yet. Pick another place, or click empty map to go back to the full map.</p>`); return; }
     stopUpPlay(); state.up = { j: cand.jid, i: sceneList(cand.jid).indexOf(cand), v: 0 }; lastSync = null; upSync(); upSoft();
   } else if (state.view === "fields") {
     const arr = FDM[key]; if (!arr) return;
@@ -2027,7 +2030,7 @@ function cityCard() {
   const key = state.city, c = CITIES[key]; const occ = [];
   JOURNEYS.forEach(j => j.steps.forEach(s => { if (s.c === key) occ.push([j, s]); }));
   return `<section class="card" aria-label="${esc(c.n)}">
-    <div class="row"><h2>${esc(c.n)}</h2>${SC.some(x => x.c === key) ? `<button class="btn" data-act="upclose" data-c="${key}">Up close</button>` : ""}<button class="btn x" data-act="closecity" aria-label="Close place details">Close</button></div>
+    <div class="row"><h2>${esc(c.n)}</h2>${SC.some(x => x.c === key) ? `<button class="btn" data-act="upclose" data-c="${key}">In-Depth</button>` : ""}<button class="btn x" data-act="closecity" aria-label="Close place details">Close</button></div>
     <p class="muted small">${esc(c.m)}</p>
     ${churchBlock(key)}
     ${fieldsBlock(key)}
@@ -2105,7 +2108,7 @@ function stepExtra(j, s) {
   } else o += `<p class="muted small">No gathering of believers is described here on this journey.</p>`;
   if (fd) o += `<div class="fstep" style="--jc:${col}"><span>${fieldSVG(fd.st, j.color)}</span><div><b>${esc(STAGE_NAME[fd.st])}</b><br>${esc(fd.note)} ${refsInline(fd.ref)}${fd.lead ? `<br><span class="small muted">Leaders: ${esc(fd.lead)}</span>` : ""}</div></div>`;
   if (pe.length) o += pe.map(e => `<div class="pev" style="--jc:${col}"><div class="row"><span class="tag">${esc(KIND[e.k])}</span><span class="sev">${"●".repeat(e.sev)}${"○".repeat(3 - e.sev)}</span></div><span>${esc(e.t)} ${refsInline(e.r)}</span><ul class="el">${e.eff.map(x => `<li><span class="etag">${esc(EFF[x[0]].n)}</span><span>${esc(x[1])} ${refsInline(x[2])}</span></li>`).join("")}</ul></div>`).join("");
-  if (SC.some(x => x.c === key && x.jid === j.id)) o += `<div><button class="btn" data-act="upclose" data-c="${key}">Up close</button></div>`;
+  if (SC.some(x => x.c === key && x.jid === j.id)) o += `<div><button class="btn" data-act="upclose" data-c="${key}">In-Depth</button></div>`;
   return `<div class="sx" style="--jc:${col}">${o}</div>`;
 }
 function renderPanel() {
@@ -2357,7 +2360,7 @@ upEl.addEventListener("click", e => {
 });
 function renderTop() {
   const tab = (v, t) => `<button role="tab" data-view="${v}" aria-selected="${state.view === v}">${t}</button>`;
-  panelTop.innerHTML = layersHTML() + `<div class="views" role="tablist" aria-label="View">${tab("map", "Map")}${tab("up", "Up close")}${tab("fields", "Four Fields")}</div>`;
+  panelTop.innerHTML = layersHTML() + `<div class="views" role="tablist" aria-label="View">${tab("map", "Map")}${tab("up", "In-Depth")}${tab("fields", "Four Fields")}</div>`;
 }
 const playIn = el => { if (!el) return; el.classList.remove("fade"); void el.offsetWidth; el.classList.add("fade"); };
 let lastSync = null, lastUpKey = null, lastFFKey = null, lastPanelKey = null;
