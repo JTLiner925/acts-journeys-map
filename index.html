@@ -158,7 +158,14 @@ header.top p { margin: 0; color: var(--ink2); font-size: 0.9rem; min-width: 0; }
 
 .app { display: grid; grid-template-columns: minmax(0, 1fr) minmax(440px, 540px); gap: 24px; height: max(560px, calc(100dvh - 118px)); margin: 0 28px 28px; transition: grid-template-columns .25s; }
 .app.wide { grid-template-columns: minmax(0, 40fr) minmax(0, 60fr); }
-.app.wide .mapwrap { align-self: start; height: 50%; min-height: 340px; }
+.leftcol { min-width: 0; min-height: 0; display: flex; flex-direction: column; gap: 16px; }
+.leftcol .mapwrap { flex: 1 1 auto; }
+.leftextra { display: none; }
+.app.wide .mapwrap { flex: 0 0 50%; min-height: 340px; }
+.app.wide .leftextra { display: flex; flex-direction: column; gap: 14px; flex: 1 1 0; min-height: 0; overflow-y: auto; border: 1px solid var(--line); border-radius: 14px; background: var(--surface); padding: 18px; }
+.app.wide .leftextra:empty { display: none; }
+.leftextra .upside { border: 0; padding: 0; background: none; }
+.upmain.solo { grid-template-columns: minmax(0, 1fr); }
 .app.wide .lbl.cur { display: block !important; font-size: 13px; }
 .mapwrap { position: relative; min-width: 0; min-height: 0; background: var(--sea); overflow: hidden; touch-action: none; border: 1px solid var(--line); border-radius: 14px; }
 #map { width: 100%; height: 100%; display: block; cursor: grab; user-select: none; -webkit-user-select: none; }
@@ -431,8 +438,10 @@ table.mx td button .mk.p { left: -2px; right: auto; }
 
 @media (max-width: 900px) {
   .app, .app.wide { display: block; height: auto; margin: 0 16px 20px; }
+  .leftcol { display: block; }
+  .app.wide .leftextra { display: none; }
   .mapwrap { position: sticky; top: env(safe-area-inset-top, 0px); height: 50dvh; z-index: 5; margin-bottom: 14px; }
-  .app.wide .mapwrap { height: 28dvh; }
+  .app.wide .mapwrap { height: 28dvh; min-height: 0; }
   .panel { overflow: visible; padding: 0 16px 20px; }
   .ptop { position: static; }
   header.top { padding: 16px 16px 12px; }
@@ -448,6 +457,7 @@ table.mx td button .mk.p { left: -2px; right: auto; }
   <p>Every trip recorded in Acts, including other disciples. See who went along, what it cost, and how churches grew against the Church Waffle and the Four Fields.</p>
 </header>
 <div class="app" id="app">
+  <div class="leftcol" id="leftcol">
   <section class="mapwrap" id="mapwrap" aria-label="Map of the eastern Mediterranean showing journeys from Acts">
     <svg id="map" viewBox="0 0 1180 700" preserveAspectRatio="xMidYMid meet" role="group" aria-label="Interactive map"></svg>
     <div class="tools">
@@ -466,6 +476,8 @@ table.mx td button .mk.p { left: -2px; right: auto; }
     </div>
     <div id="tip" class="tip" hidden></div>
   </section>
+    <div class="leftextra" id="leftextra"></div>
+  </div>
   <aside class="panel" id="panel">
     <div id="paneltop" class="ptop"></div>
     <div id="panelbody" class="pbody" aria-live="polite"></div>
@@ -2016,8 +2028,8 @@ function renderPanel() {
       <label class="vis" title="Show on map"><input type="checkbox" data-act="vis" data-id="${j.id}" ${state.hidden.has(j.id) ? "" : "checked"} aria-label="Show ${esc(j.name)} on the map"></label></li>`;
     const grp = (g, t) => `<div class="jgrp">${t}</div><ul class="jlist">${JOURNEYS.filter(j => j.grp === g).sort((a, b) => a.ord - b.ord).map(card).join("")}</ul>`;
     html += `<div><h2>Fifteen journeys in Acts</h2><p class="hint" style="margin-top:6px">Paul and Barnabas travel together, apart and with others, and so do many other disciples. Choose a journey to follow it stop by stop, or tick the boxes to show and hide routes. Tap any place on the map for its church, its fields stage, and what it cost.</p></div>
-    ${grp("paul", "Paul and Barnabas")}${grp("others", "Other disciples and followers")}
     <div class="row"><button class="btn" data-act="showall">Show all</button><button class="btn" data-act="hideall">Hide all</button></div>
+    ${grp("paul", "Paul and Barnabas")}${grp("others", "Other disciples and followers")}
     <p class="note">Dates are approximate and scholars place some a year or two either way. Routes follow the places the text names. Where it gives no route, the line is a likely road or sea lane. Others named only in the letters, such as Phoebe, Epaphroditus, Titus, Tychicus and Epaphras, are not drawn. Paul’s travels after Acts 28 are not drawn either.</p>`;
   } else {
     const j = byId(state.focus), n = j.steps.length, cur = state.step;
@@ -2079,7 +2091,7 @@ document.addEventListener("keydown", e => { if (e.key === "Escape") { if (state.
 
 
 /* ---------- four fields view ---------- */
-const ffEl = document.getElementById("ffview"), appEl = document.getElementById("app");
+const leftExtra = document.getElementById("leftextra"), ffEl = document.getElementById("ffview"), appEl = document.getElementById("app");
 function ffCum() {
   const best = {}, rows = [];
   JOURNEYS.slice().sort((a, b) => a.ord - b.ord).forEach(j => {
@@ -2090,6 +2102,7 @@ function ffCum() {
   return rows;
 }
 function renderFF() {
+  const desk = state.view === "fields" && matchMedia("(min-width: 901px)").matches;
   const cum = ffCum(), mx = Math.max(...cum.map(r => r.c[1] + r.c[2] + r.c[3] + r.c[4]));
   const js = JOURNEYS.slice().sort((a, b) => a.ord - b.ord).filter(j => FD.some(r => r[1] === j.id));
   const byKey = {}; FD.forEach(r => { byKey[r[0] + "|" + r[1]] = r; });
@@ -2120,7 +2133,8 @@ function renderFF() {
       <p class="small muted" style="margin-bottom:8px">Column colors are the journey colors from the map. The icon shows the stage. Tap a cell for the evidence, the leaders and the suffering that came with it.</p>
       <div class="mxwrap"><table class="mx"><thead><tr><th class="rh"></th>${js.map(j => `<th style="--jc:var(${j.color})"><span>${esc(j.short)}</span></th>`).join("")}</tr></thead><tbody>${rowsHTML}</tbody></table></div>
     </div>
-    <div class="ffdetail" id="ffdetail">${ffDetail()}</div></div>`;
+    ${desk ? "" : `<div class="ffdetail" id="ffdetail">${ffDetail()}</div>`}</div>`;
+  leftExtra.innerHTML = desk ? (ffDetail() || `<p class="muted small">Pick a place and journey in the table to see its evidence, leaders and suffering here.</p>`) : "";
 }
 function ffDetail() {
   if (!state.ff) return "";
@@ -2131,11 +2145,12 @@ function ffDetail() {
     ${pe.length ? `<div><h3>Suffering and what followed</h3><div style="display:flex;flex-direction:column;gap:12px">${pe.map(e => `<div class="pev" style="--jc:var(${e.j.color})"><div class="row"><span class="tag">${esc(KIND[e.k])}</span><span class="sev">${"●".repeat(e.sev)}${"○".repeat(3 - e.sev)}</span></div><span>${esc(e.t)} ${refsInline(e.r)}</span><ul class="el">${e.eff.map(x => `<li><span class="etag">${esc(EFF[x[0]].n)}</span><span>${esc(x[1])} ${refsInline(x[2])}</span></li>`).join("")}</ul></div>`).join("")}</div></div>` : ""}
     ${FDM[c].length > 1 ? `<div><h3>This place over time</h3><div style="display:flex;flex-direction:column;gap:8px">${FDM[c].map(x => `<div class="fstep" style="--jc:var(${x.j.color})"><span>${fieldSVG(x.st, x.j.color)}</span><div><b style="color:var(${x.j.color})">${esc(x.j.short)}</b> · ${esc(STAGE_NAME[x.st])}<br>${esc(x.note)} ${refsInline(x.ref)}</div></div>`).join("")}</div></div>` : ""}`;
 }
-ffEl.addEventListener("click", e => {
+const ffClick = e => {
   const b = e.target.closest("[data-act]"); if (!b) return;
   if (b.dataset.act === "ffcell") { state.ff = { c: b.dataset.c, j: b.dataset.j }; syncMini(b.dataset.c, b.dataset.j); const sc = ffEl.querySelector(".mxwrap"); const l = sc.scrollLeft, t = sc.scrollTop; renderFF(); const sc2 = ffEl.querySelector(".mxwrap"); sc2.scrollLeft = l; sc2.scrollTop = t; const d = document.getElementById("ffdetail"); if (d) d.scrollIntoView({ block: "nearest", behavior: "smooth" }); }
   else if (b.dataset.act === "ffmap") { setView("map"); state.hidden.delete(b.dataset.j); setTimeout(() => selectCity(b.dataset.c, b.dataset.j), 60); }
-});
+};
+ffEl.addEventListener("click", ffClick); leftExtra.addEventListener("click", ffClick);
 
 /* ---------- up-close view ---------- */
 const upEl = document.getElementById("upview");
@@ -2176,19 +2191,8 @@ function renderUp() {
   const col = `var(${j.color})`, ct = audCounts([sc]);
   const wellN = sn ? sn.pr.filter(q => q[1] === "w").length : 0, poorN = sn ? sn.pr.length - wellN : 0;
   const venueHTML = sc.v.map((v, i) => { const multi = v.a.length > 1, ac = AUD[v.a[0]].c; return `<button class="venue" style="--jc:${col};--ac:var(${ac})" data-up="venue" data-i="${i}" aria-pressed="${i === state.up.v}"><span class="no">${i + 1}</span><span class="rs ${v.r === "n" ? "n" : ""}" title="${esc(RESP[v.r][0])}">${RESP[v.r][1]}</span><span class="vi ${multi ? "split" : ""}">${venueIcon(v.t)}</span><span class="vn">${esc(v.n)}</span><span class="vt2">${esc(VT[v.t])}</span>${audPills(v.a)}</button>`; }).join("");
-  upEl.innerHTML = `<div class="up">
-   <div class="upbar"><div class="upj" role="group" aria-label="Journey">${js.map(x => `<button style="--jc:var(${x.color})" data-up="journey" data-j="${x.id}" aria-pressed="${x.id === j.id}">${esc(x.short)}</button>`).join("")}</div></div>
-   <div class="upbar"><button class="btn" data-up="prev" ${state.up.i <= 0 ? "disabled" : ""}>&larr; Prev</button><button class="btn primary" data-up="play">${upPlay ? "Pause" : "Play tour"}</button><button class="btn" data-up="next" ${state.up.i >= list.length - 1 ? "disabled" : ""}>Next &rarr;</button><span class="muted small">Stop ${state.up.i + 1} of ${list.length} on the ${esc(j.name)}</span></div>
-   <div class="uprail" role="group" aria-label="Stops">${list.map((x, i) => `<button style="--jc:${col}" data-up="stop" data-i="${i}" aria-pressed="${i === state.up.i}"><span class="ic">${venueIcon(x.v[0].t)}</span><span>${esc(CITIES[x.c].n)}</span><span class="dots">${[...new Set(x.v.flatMap(v => [...v.a]))].map(ch => `<i style="--ac:var(${AUD[ch].c})"></i>`).join("")}</span></button>`).join("")}</div>
-   <div class="upmain"><div class="upscene" style="--jc:${col}">
-     <div class="row"><h2 style="color:${col}">${esc(CITIES[sc.c].n)}</h2><span class="muted small">${esc(CITIES[sc.c].m)}</span><button class="btn x" style="margin-left:auto" data-up="map" data-c="${sc.c}">Show on the map</button></div>
-     <div class="tags">${COLONY[sc.c] ? `<span class="tagc">${esc(COLONY[sc.c])}</span>` : ""}<span class="tagc">Mostly speaking to: <b>${esc(sc.prim)}</b></span>${sn ? `<span class="tagc">${sn.st === "church" ? "Church (solid circle)" : "Group (dashed circle)"}</span>` : ""}${fd ? `<span class="tagc">${esc(STAGE_NAME[fd.st])}</span>` : ""}</div>
-     <p class="strat">${esc(sc.strat)}</p>
-     <div><h3 class="muted small" style="font-family:var(--font-ui);text-transform:uppercase;letter-spacing:.1em;font-size:.68rem;margin-bottom:4px">Who he spoke to here</h3>${audBar(ct)}<div class="apills" style="margin-top:6px">${Object.keys(AUD).filter(k => ct[k]).map(k => `<span class="ap" style="--ac:var(${AUD[k].c})">${esc(AUD[k].n)}</span>`).join("")}</div></div>
-     <div><h3 class="muted small" style="font-family:var(--font-ui);text-transform:uppercase;letter-spacing:.1em;font-size:.68rem;margin-bottom:8px">Where he went, in order</h3><div class="plan">${venueHTML}</div></div>
-     <div class="vdetail" style="--jc:${col}"><div class="row"><b>${state.up.v + 1}. ${esc(sel.n)}</b><span class="tag">${esc(VT[sel.t])}</span><span class="tag">${RESP[sel.r][1]} ${esc(RESP[sel.r][0])}</span></div>${audPills(sel.a)}<span>${esc(sel.x)}</span><span class="small">${refLinks(sel.ref)}</span></div>
-    </div>
-    <aside class="upside" style="--jc:${col}"><h3 class="muted small" style="font-family:var(--font-ui);text-transform:uppercase;letter-spacing:.1em;font-size:.68rem">The church circle here</h3>
+  const desk = state.view === "up" && matchMedia("(min-width: 901px)").matches;
+  const asideHTML = `    <aside class="upside" style="--jc:${col}"><h3 class="muted small" style="font-family:var(--font-ui);text-transform:uppercase;letter-spacing:.1em;font-size:.68rem">The church circle here</h3>
      ${upCircle(sn, j)}
      <p class="small muted" style="text-align:center">${sn ? `${sn.st === "church" ? "Solid circle: a church." : "Dashed circle: believers, not yet a church."} ${wellN} practiced well${poorN ? `, ${poorN} poorly (outside the circle)` : ""}. Faint icons: nothing recorded.` : "No gathering of believers is described here, so the circle is empty and dashed."}</p>
      ${sn ? `<p class="small">${esc(sn.ev)} <span class="muted">(${refLinks(sn.er)})</span></p>` : ""}
@@ -2197,8 +2201,22 @@ function renderUp() {
      ${fd ? `<div class="fstep" style="--jc:${col}"><span>${fieldSVG(fd.st, j.color)}</span><div><b>${esc(STAGE_NAME[fd.st])}</b><br>${esc(fd.note)} ${refsInline(fd.ref)}</div></div>` : ""}
      ${pe.length ? `<div style="display:flex;flex-direction:column;gap:10px">${pe.map(e => `<div class="pev" style="--jc:${col}"><div class="row"><span class="tag">${esc(KIND[e.k])}</span><span class="sev">${"●".repeat(e.sev)}${"○".repeat(3 - e.sev)}</span></div><span>${esc(e.t)} ${refsInline(e.r)}</span><ul class="el">${e.eff.map(x => `<li><span class="etag">${esc(EFF[x[0]].n)}</span><span>${esc(x[1])} ${refsInline(x[2])}</span></li>`).join("")}</ul></div>`).join("")}</div>` : ""}
      ${locator(sc)}
-    </aside></div>
+    </aside>`;
+  upEl.innerHTML = `<div class="up">
+   <div class="upbar"><div class="upj" role="group" aria-label="Journey">${js.map(x => `<button style="--jc:var(${x.color})" data-up="journey" data-j="${x.id}" aria-pressed="${x.id === j.id}">${esc(x.short)}</button>`).join("")}</div></div>
+   <div class="upbar"><button class="btn" data-up="prev" ${state.up.i <= 0 ? "disabled" : ""}>&larr; Prev</button><button class="btn primary" data-up="play">${upPlay ? "Pause" : "Play tour"}</button><button class="btn" data-up="next" ${state.up.i >= list.length - 1 ? "disabled" : ""}>Next &rarr;</button><span class="muted small">Stop ${state.up.i + 1} of ${list.length} on the ${esc(j.name)}</span></div>
+   <div class="uprail" role="group" aria-label="Stops">${list.map((x, i) => `<button style="--jc:${col}" data-up="stop" data-i="${i}" aria-pressed="${i === state.up.i}"><span class="ic">${venueIcon(x.v[0].t)}</span><span>${esc(CITIES[x.c].n)}</span><span class="dots">${[...new Set(x.v.flatMap(v => [...v.a]))].map(ch => `<i style="--ac:var(${AUD[ch].c})"></i>`).join("")}</span></button>`).join("")}</div>
+   <div class="upmain ${desk ? "solo" : ""}"><div class="upscene" style="--jc:${col}">
+     <div class="row"><h2 style="color:${col}">${esc(CITIES[sc.c].n)}</h2><span class="muted small">${esc(CITIES[sc.c].m)}</span><button class="btn x" style="margin-left:auto" data-up="map" data-c="${sc.c}">Show on the map</button></div>
+     <div class="tags">${COLONY[sc.c] ? `<span class="tagc">${esc(COLONY[sc.c])}</span>` : ""}<span class="tagc">Mostly speaking to: <b>${esc(sc.prim)}</b></span>${sn ? `<span class="tagc">${sn.st === "church" ? "Church (solid circle)" : "Group (dashed circle)"}</span>` : ""}${fd ? `<span class="tagc">${esc(STAGE_NAME[fd.st])}</span>` : ""}</div>
+     <p class="strat">${esc(sc.strat)}</p>
+     <div><h3 class="muted small" style="font-family:var(--font-ui);text-transform:uppercase;letter-spacing:.1em;font-size:.68rem;margin-bottom:4px">Who he spoke to here</h3>${audBar(ct)}<div class="apills" style="margin-top:6px">${Object.keys(AUD).filter(k => ct[k]).map(k => `<span class="ap" style="--ac:var(${AUD[k].c})">${esc(AUD[k].n)}</span>`).join("")}</div></div>
+     <div><h3 class="muted small" style="font-family:var(--font-ui);text-transform:uppercase;letter-spacing:.1em;font-size:.68rem;margin-bottom:8px">Where he went, in order</h3><div class="plan">${venueHTML}</div></div>
+     <div class="vdetail" style="--jc:${col}"><div class="row"><b>${state.up.v + 1}. ${esc(sel.n)}</b><span class="tag">${esc(VT[sel.t])}</span><span class="tag">${RESP[sel.r][1]} ${esc(RESP[sel.r][0])}</span></div>${audPills(sel.a)}<span>${esc(sel.x)}</span><span class="small">${refLinks(sel.ref)}</span></div>
+    </div>
+${desk ? "" : asideHTML}</div>
    ${upPattern()}</div>`;
+  leftExtra.innerHTML = desk ? asideHTML : "";
 }
 function upPattern() {
   const firstSyn = SC.filter(x => x.j.grp === "paul" && ["salamis", "pisantioch", "iconium", "thessalonica", "berea", "athens", "corinth", "ephesus"].includes(x.c));
@@ -2249,7 +2267,17 @@ function renderTop() {
   const tab = (v, t) => `<button role="tab" data-view="${v}" aria-selected="${state.view === v}">${t}</button>`;
   panelTop.innerHTML = layersHTML() + `<div class="views" role="tablist" aria-label="View">${tab("map", "Map")}${tab("up", "Up close")}${tab("fields", "Four Fields")}</div>`;
 }
-let savedMap = null, lastSync = null;
+let lastSync = null;
+function seedFromMap(v) {
+  const jid = state.focus, j = jid ? byId(jid) : null;
+  const city = state.city || (j && state.step != null && j.steps[state.step] ? j.steps[state.step].c : null);
+  if (v === "up") {
+    let sc = null;
+    if (jid && SC.some(x => x.jid === jid)) { const list = sceneList(jid); sc = list.find(x => x.c === city) || list[0]; }
+    else if (city) sc = SC.find(x => x.c === city);
+    if (sc) state.up = { j: sc.jid, i: sceneList(sc.jid).indexOf(sc), v: 0 };
+  } else if (v === "fields" && jid && city && FDM[city] && FDM[city].some(f => f.jid === jid)) state.ff = { c: city, j: jid };
+}
 function syncMini(c, jid) {
   const j = byId(jid); if (!j) return;
   state.focus = jid; state.step = Math.max(0, j.steps.findIndex(x => x.c === c)); state.city = c; updateStyles();
@@ -2264,8 +2292,8 @@ function upSync() {
 }
 function setView(v) {
   const was = state.view; stopPlay();
-  if (was === "map" && v !== "map") savedMap = { focus: state.focus, step: state.step, city: state.city };
-  if (v === "map" && was !== "map" && savedMap) { state.focus = savedMap.focus; state.step = savedMap.step; state.city = savedMap.city; updateStyles(); }
+  if (v !== "map") seedFromMap(v);
+  if (v === "map") leftExtra.innerHTML = "";
   state.view = v; if (v !== "up") stopUpPlay();
   document.querySelectorAll(".views [data-view]").forEach(b => b.setAttribute("aria-selected", b.dataset.view === v));
   panelBody.hidden = v !== "map"; ffEl.hidden = v !== "fields"; upEl.hidden = v !== "up";
