@@ -236,7 +236,7 @@ header.top p { margin: 0; color: var(--ink2); font-size: 0.9rem; min-width: 0; }
 .stepper { display: flex; gap: 6px; align-items: center; flex-wrap: wrap; }
 .stepper .cnt { margin-left: auto; font-size: 0.78rem; color: var(--ink2); font-variant-numeric: tabular-nums; }
 .steps { list-style: none; margin: 0; padding: 0; display: flex; flex-direction: column; }
-.step { border-left: 3px solid var(--line); margin-left: 6px; }
+.step { border-left: 3px solid var(--line); margin-left: 6px; scroll-margin-top: 130px; }
 .step > button { display: grid; grid-template-columns: 22px minmax(0, 1fr); gap: 6px; text-align: left; width: 100%; background: none; border: 0; padding: 6px 8px 6px 10px; }
 .step > button:hover { background: var(--bg); }
 .step .n { font-size: 0.72rem; color: var(--ink2); font-variant-numeric: tabular-nums; padding-top: 2px; }
@@ -448,18 +448,19 @@ table.mx td button .mk.p { left: -2px; right: auto; }
 .clegend li.p .ci .wic { width: 24px; height: 24px; }
 .clegend .st { font-size: 0.68rem; letter-spacing: 0.06em; text-transform: uppercase; color: var(--ink2); margin-left: 4px; }
 /* soft motion */
-@keyframes fadeup { from { opacity: 0; transform: translateY(8px); } to { opacity: 1; transform: none; } }
+@keyframes fadeup { from { opacity: 0; transform: translateY(5px); } to { opacity: 1; transform: none; } }
+.out { opacity: 0 !important; transition: opacity .25s ease; }
 @keyframes xp { from { grid-template-rows: 0fr; opacity: 0; } to { grid-template-rows: 1fr; opacity: 1; } }
-.fade { animation: fadeup .26s cubic-bezier(.2, .7, .3, 1) both; }
-.card { animation: fadeup .28s cubic-bezier(.2, .7, .3, 1) both; }
-.xp { display: grid; grid-template-rows: 1fr; animation: xp .34s cubic-bezier(.2, .7, .3, 1) both; }
+.fade { animation: fadeup .25s ease both; }
+.card { animation: fadeup .25s ease both; }
+.xp { display: grid; grid-template-rows: 1fr; animation: xp .3s ease both; }
 .xp > .xi { min-height: 0; overflow: hidden; }
 .sx { display: flex; flex-direction: column; gap: 10px; padding: 6px 0 4px; }
 .sx .waf { max-width: 300px; }
 button, .btn, .jcard, .venue, .step > button, .echip, .wchip, .patrow, .pstrip, .upj button, .uprail button, table.mx td button, .vis { transition: background-color .18s ease, border-color .18s ease, box-shadow .18s ease, color .18s ease, opacity .18s ease; }
-.app { transition: grid-template-columns .28s cubic-bezier(.2, .7, .3, 1); }
-details.sect[open] > :not(summary) { animation: fadeup .24s ease both; }
-@media (prefers-reduced-motion: reduce) { .fade, .card, .xp, details.sect[open] > :not(summary) { animation: none; } .app { transition: none; } }
+.app { transition: grid-template-columns .3s ease; }
+details.sect[open] > :not(summary) { animation: fadeup .25s ease both; }
+@media (prefers-reduced-motion: reduce) { .fade, .card, .xp, details.sect[open] > :not(summary) { animation: none; } .app { transition: none; } .out { transition: none; } }
 
 @media (max-width: 900px) { .upmain { grid-template-columns: minmax(0, 1fr); } }
 
@@ -947,7 +948,7 @@ function refLinks(str) {
 }
 
 /* ---------- state ---------- */
-const state = { up: { j: "second", i: 0, v: 0 }, view: "map", focus: null, step: null, city: null, snapJ: null, practice: null, eff: null, ff: null, hidden: new Set(), playing: null, layers: { routes: true, churches: true, dots: true, nums: true, pers: true, fields: false }, open: { waffle: false, growth: false, pers: false, fields: false } };
+const state = { up: { j: "second", i: 0, v: 0 }, view: "map", focus: null, step: null, city: null, snapJ: null, practice: null, eff: null, ff: null, hidden: new Set(JOURNEYS.filter(j => j.id !== "first").map(j => j.id)), playing: null, layers: { routes: true, churches: true, dots: true, nums: true, pers: true, fields: true }, open: { waffle: false, growth: false, pers: false, fields: false } };
 const view = { k: 1, x: 0, y: 0 };
 const byId = id => JOURNEYS.find(j => j.id === id);
 /* ---------- Church Waffle practices (multiplyingdisciples.us / churchwaffle.com, 12 short-term discipleship stories) ---------- */
@@ -1761,7 +1762,12 @@ function fitPoints(pts, pad, ms, maxK) {
   const k = Math.min(vw / Math.max(40, x1 - x0 + pad * 2), vh / Math.max(40, y1 - y0 + pad * 2), maxK || 8);
   flyTo(Math.max(0.9, k), (x0 + x1) / 2, (y0 + y1) / 2, ms);
 }
-function fitAll(ms) { const pts = Object.keys(PINS).map(k => proj(CITIES[k].ll)); pts.push([60, 0], [W - 20, 0]); fitPoints(pts, 70, ms); }
+function fitAll(ms) {
+  const vis = JOURNEYS.filter(j => !state.hidden.has(j.id));
+  if (vis.length && vis.length < JOURNEYS.length) {
+    const pts = []; vis.forEach(j => { j.steps.forEach(t => pts.push(proj(CITIES[t.c].ll))); LEGS.filter(L => L.j === j).forEach(L => pts.push(...L.pts)); });
+    fitPoints(pts, 60, ms); return;
+  } const pts = Object.keys(PINS).map(k => proj(CITIES[k].ll)); pts.push([60, 0], [W - 20, 0]); fitPoints(pts, 70, ms); }
 
 let dragged = false;
 const ptrs = new Map(); let panStart = null, pinch0 = null;
@@ -1903,8 +1909,7 @@ function navFromMap(key, jid) {
   if (state.view === "up") {
     const cand = SC.find(x => x.c === key && x.jid === (jid || here)) || SC.find(x => x.c === key && x.jid === here) || SC.find(x => x.c === key);
     if (!cand) { renderUp(); leftExtra.insertAdjacentHTML("afterbegin", `<p class="muted small">No up-close scene for ${esc(CITIES[key].n)} yet. Pick another place, or click empty map to go back to the full map.</p>`); return; }
-    stopUpPlay(); state.up = { j: cand.jid, i: sceneList(cand.jid).indexOf(cand), v: 0 }; lastSync = null; renderUp(); upSync();
-    const r = upEl.querySelector(".uprail [aria-pressed=true]"); if (r) r.scrollIntoView({ inline: "center", block: "nearest" });
+    stopUpPlay(); state.up = { j: cand.jid, i: sceneList(cand.jid).indexOf(cand), v: 0 }; lastSync = null; upSync(); upSoft();
   } else if (state.view === "fields") {
     const arr = FDM[key]; if (!arr) return;
     const f = arr.find(x => x.jid === (jid || here)) || arr.find(x => x.jid === here) || arr[arr.length - 1];
@@ -1939,7 +1944,11 @@ function gotoStep(i, fromFocus) {
   const L = LEGS.find(L => L.s === s); if (L) pts.push(...L.pts);
   if (L) fitPoints(pts, 70); else { const p = pts[0]; flyTo(Math.max(view.k, 3.5), p[0], p[1]); }
   if (!fromFocus || true) {
-    const cur = panel.querySelector(".step.cur"); if (cur && !matchMedia("(max-width: 900px)").matches) cur.scrollIntoView({ block: "nearest", behavior: "smooth" });
+    setTimeout(() => {
+      const cur = panel.querySelector(".step.cur"); if (!cur || matchMedia("(max-width: 900px)").matches) return;
+      const top = cur.getBoundingClientRect().top - panel.getBoundingClientRect().top + panel.scrollTop - panelTop.offsetHeight - 10;
+      panel.scrollTo({ top: Math.max(0, top), behavior: "smooth" });
+    }, 60);
   }
 }
 function stopPlay() { if (state.playing) { clearInterval(state.playing); state.playing = null; } }
@@ -2137,7 +2146,7 @@ panel.addEventListener("click", e => {
   else if (a === "next") { stopPlay(); gotoStep((state.step == null ? -1 : state.step) + 1); }
   else if (a === "play") togglePlay();
   else if (a === "whole") { stopPlay(); state.step = null; renderPanel(); updateStyles(); fitJourney(byId(state.focus)); }
-  else if (a === "showall") { state.hidden.clear(); renderPanel(); updateStyles(); }
+  else if (a === "showall") { state.hidden.clear(); renderPanel(); updateStyles(); fitAll(); }
   else if (a === "hideall") { JOURNEYS.forEach(j => state.hidden.add(j.id)); renderPanel(); updateStyles(); }
   else if (a === "eff") { state.eff = state.eff === b.dataset.k ? null : b.dataset.k; state.open.pers = true; renderPanel(); updateStyles(); }
   else if (a === "upclose") { openUp(b.dataset.c); }
@@ -2324,12 +2333,12 @@ upEl.addEventListener("click", e => {
   else if (a === "map") { stopUpPlay(); const sc = list[state.up.i]; setView("map"); state.hidden.delete(sc.jid); setTimeout(() => selectCity(sc.c, sc.jid), 60); return; }
   else if (a === "play") {
     if (upPlay) { stopUpPlay(); } else {
-      const adv = () => { const l = sceneList(state.up.j); if (state.up.i >= l.length - 1) { stopUpPlay(); renderUp(); return; } state.up.i++; state.up.v = 0; renderUp(); upSync(); };
+      const adv = () => { const l = sceneList(state.up.j); if (state.up.i >= l.length - 1) { stopUpPlay(); renderUp(); return; } state.up.i++; state.up.v = 0; upSync(); upSoft(); };
       if (state.up.i >= list.length - 1) state.up.i = -1; adv(); upPlay = setInterval(adv, 6500); return;
     }
   }
-  renderUp(); upSync();
-  const r = upEl.querySelector(".uprail [aria-pressed=true]"); if (r) r.scrollIntoView({ inline: "center", block: "nearest" });
+  upSync();
+  if (a === "venue") renderUp(); else upSoft();
 });
 function renderTop() {
   const tab = (v, t) => `<button role="tab" data-view="${v}" aria-selected="${state.view === v}">${t}</button>`;
@@ -2359,23 +2368,41 @@ function upSync() {
   const key = state.up.j + "|" + sc.c; if (key === lastSync) return;
   lastSync = key; syncMini(sc.c, state.up.j);
 }
+const reduceMotion = () => matchMedia("(prefers-reduced-motion: reduce)").matches;
+let viewToken = 0, upTok = 0;
 function setView(v) {
   const was = state.view; stopPlay();
   if (v !== "map") seedFromMap(v);
-  if (v === "map") leftExtra.innerHTML = "";
   state.view = v; if (v !== "up") stopUpPlay();
+  const tok = ++viewToken, cont = k => k === "map" ? panelBody : k === "up" ? upEl : ffEl, old = cont(was), d = (was === v || reduceMotion()) ? 0 : 250;
   document.querySelectorAll(".views [data-view]").forEach(b => b.setAttribute("aria-selected", b.dataset.view === v));
-  panelBody.hidden = v !== "map"; ffEl.hidden = v !== "fields"; upEl.hidden = v !== "up";
   appEl.classList.toggle("wide", v !== "map");
-  if (v === "fields") renderFF(); else if (v === "up") renderUp(); else renderPanel();
+  if (d) { old.classList.add("out"); leftExtra.classList.add("out"); }
   setTimeout(() => {
+    if (tok !== viewToken) return;
+    old.classList.remove("out"); leftExtra.classList.remove("out");
+    if (v === "map") leftExtra.innerHTML = "";
+    panelBody.hidden = v !== "map"; ffEl.hidden = v !== "fields"; upEl.hidden = v !== "up";
+    if (v === "fields") renderFF(); else if (v === "up") renderUp(); else renderPanel();
+    playIn(cont(v)); playIn(leftExtra); panel.scrollTop = 0;
+  }, d);
+  setTimeout(() => {
+    if (tok !== viewToken) return;
     applyView();
     if (v === "up") { lastSync = null; upSync(); }
     else if (v === "fields") { if (state.ff) syncMini(state.ff.c, state.ff.j); else fitAll(0); }
     else if (state.focus) fitJourney(byId(state.focus)); else if (!state.city) fitAll(0);
-  }, 280);
-  playIn(v === "map" ? panelBody : v === "up" ? upEl : ffEl); playIn(leftExtra);
-  panel.scrollTop = 0; window.scrollTo(0, 0);
+  }, 300);
+  window.scrollTo(0, 0);
+}
+function upSoft() {
+  const tok = ++upTok, d = reduceMotion() ? 0 : 250, sc = upEl.querySelector(".upscene");
+  upEl.querySelectorAll(".uprail button").forEach((b, i) => b.setAttribute("aria-pressed", i === state.up.i));
+  if (d) { if (sc) sc.classList.add("out"); leftExtra.classList.add("out"); }
+  setTimeout(() => {
+    if (tok !== upTok) return; leftExtra.classList.remove("out"); renderUp();
+    const r = upEl.querySelector(".uprail [aria-pressed=true]"); if (r) r.scrollIntoView({ inline: "center", block: "nearest" });
+  }, d);
 }
 document.addEventListener("click", e => { const b = e.target.closest("[data-view]"); if (b) setView(b.dataset.view); });
 
