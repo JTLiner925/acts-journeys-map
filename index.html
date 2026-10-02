@@ -434,6 +434,19 @@ table.mx td button .mk.p { left: -2px; right: auto; }
 .app.wide .upmain { grid-template-columns: minmax(0, 1fr); }
 .app.wide .lbl:not(.cur), .app.wide .nb, .app.wide .pcnt, .app.wide .geo.land, .app.wide .key, .app.wide #zkey { display: none; }
 @media (min-width: 1500px) { .app.wide .upmain { grid-template-columns: minmax(0, 1fr) minmax(300px, 380px); } }
+
+.cwrap { display: flex; gap: 16px; align-items: flex-start; flex-wrap: wrap; }
+.cw1 { flex: 0 0 min(270px, 54%); min-width: 190px; }
+.cw1 .upcircle { max-width: none; }
+.clegend { flex: 1 1 170px; min-width: 0; list-style: none; margin: 0; padding: 0; display: flex; flex-direction: column; gap: 8px; }
+.clegend li { display: grid; grid-template-columns: 30px minmax(0, 1fr); gap: 8px; font-size: 0.8rem; align-items: start; color: var(--jc); }
+.clegend li > span:last-child { color: var(--ink); }
+.clegend .ci { width: 28px; height: 28px; display: block; }
+.clegend .ci .wic { width: 28px; height: 28px; }
+.clegend li.n { color: var(--ink2); opacity: .55; }
+.clegend li.p .ci { border: 2px dashed var(--jc); border-radius: 50%; padding: 3px; width: 32px; height: 32px; margin: -2px; }
+.clegend li.p .ci .wic { width: 24px; height: 24px; }
+.clegend .st { font-size: 0.68rem; letter-spacing: 0.06em; text-transform: uppercase; color: var(--ink2); margin-left: 4px; }
 @media (max-width: 900px) { .upmain { grid-template-columns: minmax(0, 1fr); } }
 
 @media (max-width: 900px) {
@@ -1766,6 +1779,11 @@ function endPtr(e) {
 }
 svg.addEventListener("pointerup", endPtr); svg.addEventListener("pointercancel", endPtr);
 svg.addEventListener("wheel", e => { e.preventDefault(); if (anim) cancelAnimationFrame(anim); zoomAt(clientToSvg(e.clientX, e.clientY), view.k * Math.exp(-e.deltaY * 0.0016)); }, { passive: false });
+svg.addEventListener("click", e => {
+  if (state.view === "map" || dragged) return;
+  if (e.target.closest(".pin, .hit, .cring, .pstar, .pcnt")) return;
+  setView("map");
+});
 document.getElementById("zin").onclick = () => zoomAt([W / 2, H / 2], view.k * 1.6);
 document.getElementById("zout").onclick = () => zoomAt([W / 2, H / 2], view.k / 1.6);
 document.getElementById("zfit").onclick = () => { if (state.focus) fitJourney(byId(state.focus)); else fitAll(); };
@@ -1866,7 +1884,23 @@ function visSnaps(key) {
     : !state.hidden.has(sn.jid));
 }
 
+function navFromMap(key, jid) {
+  const here = state.view === "up" ? state.up.j : (state.ff ? state.ff.j : state.focus);
+  if (state.view === "up") {
+    const cand = SC.find(x => x.c === key && x.jid === (jid || here)) || SC.find(x => x.c === key && x.jid === here) || SC.find(x => x.c === key);
+    if (!cand) { renderUp(); leftExtra.insertAdjacentHTML("afterbegin", `<p class="muted small">No up-close scene for ${esc(CITIES[key].n)} yet. Pick another place, or click empty map to go back to the full map.</p>`); return; }
+    stopUpPlay(); state.up = { j: cand.jid, i: sceneList(cand.jid).indexOf(cand), v: 0 }; lastSync = null; renderUp(); upSync();
+    const r = upEl.querySelector(".uprail [aria-pressed=true]"); if (r) r.scrollIntoView({ inline: "center", block: "nearest" });
+  } else if (state.view === "fields") {
+    const arr = FDM[key]; if (!arr) return;
+    const f = arr.find(x => x.jid === (jid || here)) || arr.find(x => x.jid === here) || arr[arr.length - 1];
+    state.ff = { c: key, j: f.jid }; syncMini(key, f.jid);
+    const sc = ffEl.querySelector(".mxwrap"), l = sc ? sc.scrollLeft : 0, t = sc ? sc.scrollTop : 0; renderFF();
+    const sc2 = ffEl.querySelector(".mxwrap"); if (sc2) { sc2.scrollLeft = l; sc2.scrollTop = t; }
+  }
+}
 function selectCity(key, jid) {
+  if (state.view !== "map") { navFromMap(key, jid); return; }
   stopPlay(); state.city = key; state.snapJ = jid || null; renderPanel(); updateStyles();
   const c = CITIES[key]; const p = proj(c.ll);
   flyTo(Math.max(view.k, 3), p[0], p[1]);
@@ -1877,6 +1911,7 @@ function fitJourney(j) {
   fitPoints(pts, 55);
 }
 function focusJourney(id, step) {
+  if (state.view !== "map") { const jj = byId(id), c = step != null ? jj.steps[step].c : null; if (c) navFromMap(c, id); return; }
   stopPlay(); state.focus = id; state.step = step == null ? null : step; state.city = null;
   const j = byId(id); renderPanel(); updateStyles();
   if (step == null) fitJourney(j); else gotoStep(step, true);
@@ -2192,15 +2227,13 @@ function renderUp() {
   const wellN = sn ? sn.pr.filter(q => q[1] === "w").length : 0, poorN = sn ? sn.pr.length - wellN : 0;
   const venueHTML = sc.v.map((v, i) => { const multi = v.a.length > 1, ac = AUD[v.a[0]].c; return `<button class="venue" style="--jc:${col};--ac:var(${ac})" data-up="venue" data-i="${i}" aria-pressed="${i === state.up.v}"><span class="no">${i + 1}</span><span class="rs ${v.r === "n" ? "n" : ""}" title="${esc(RESP[v.r][0])}">${RESP[v.r][1]}</span><span class="vi ${multi ? "split" : ""}">${venueIcon(v.t)}</span><span class="vn">${esc(v.n)}</span><span class="vt2">${esc(VT[v.t])}</span>${audPills(v.a)}</button>`; }).join("");
   const desk = state.view === "up" && matchMedia("(min-width: 901px)").matches;
-  const asideHTML = `    <aside class="upside" style="--jc:${col}"><h3 class="muted small" style="font-family:var(--font-ui);text-transform:uppercase;letter-spacing:.1em;font-size:.68rem">The church circle here</h3>
-     ${upCircle(sn, j)}
+  const asideHTML = `    <aside class="upside" style="--jc:${col}"><div class="cwrap"><div class="cw1">${upCircle(sn, j)}</div><ul class="clegend">${PR.map(p => { const rec = sn && sn.pm[p.k], st = rec ? (rec.s === "w" ? "Done well" : "Done poorly") : "Nothing recorded"; return `<li class="${rec ? (rec.s === "w" ? "w" : "p") : "n"}"><span class="ci">${wIcon(p.k)}</span><span><b>${esc(p.n)}</b> <span class="st">${st}</span>${rec ? `<br><span class="small">${esc(rec.note)} ${refsInline(rec.ref)}</span>` : ""}</span></li>`; }).join("")}</ul></div>
      <p class="small muted" style="text-align:center">${sn ? `${sn.st === "church" ? "Solid circle: a church." : "Dashed circle: believers, not yet a church."} ${wellN} practiced well${poorN ? `, ${poorN} poorly (outside the circle)` : ""}. Faint icons: nothing recorded.` : "No gathering of believers is described here, so the circle is empty and dashed."}</p>
      ${sn ? `<p class="small">${esc(sn.ev)} <span class="muted">(${refLinks(sn.er)})</span></p>` : ""}
      ${sn && sn.nums.length ? `<div><ul class="nl" style="--jc:${col}">${sn.nums.map(n => `<li>${n[1] != null ? `<span class="v">${n[1].toLocaleString()}${n[1] === 20000 ? "+" : ""}</span> ` : ""}${esc(n[0])} ${refsInline(n[2])}</li>`).join("")}</ul></div>` : ""}
      ${sn && sn.names.length ? `<div>${peopleChips(sn.names)}</div>` : ""}
      ${fd ? `<div class="fstep" style="--jc:${col}"><span>${fieldSVG(fd.st, j.color)}</span><div><b>${esc(STAGE_NAME[fd.st])}</b><br>${esc(fd.note)} ${refsInline(fd.ref)}</div></div>` : ""}
      ${pe.length ? `<div style="display:flex;flex-direction:column;gap:10px">${pe.map(e => `<div class="pev" style="--jc:${col}"><div class="row"><span class="tag">${esc(KIND[e.k])}</span><span class="sev">${"●".repeat(e.sev)}${"○".repeat(3 - e.sev)}</span></div><span>${esc(e.t)} ${refsInline(e.r)}</span><ul class="el">${e.eff.map(x => `<li><span class="etag">${esc(EFF[x[0]].n)}</span><span>${esc(x[1])} ${refsInline(x[2])}</span></li>`).join("")}</ul></div>`).join("")}</div>` : ""}
-     ${locator(sc)}
     </aside>`;
   upEl.innerHTML = `<div class="up">
    <div class="upbar"><div class="upj" role="group" aria-label="Journey">${js.map(x => `<button style="--jc:var(${x.color})" data-up="journey" data-j="${x.id}" aria-pressed="${x.id === j.id}">${esc(x.short)}</button>`).join("")}</div></div>
